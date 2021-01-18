@@ -19,25 +19,30 @@
 package route
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
+
 	"github.com/gorilla/mux"
 
-	"controller/securemgr/authenticator"
-	"restinterface"
-	"restinterface/externalhandler"
-	"restinterface/internalhandler"
-	"restinterface/route/tlspskserver"
-	"restinterface/tls"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/securemgr/authenticator"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/externalhandler"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/internalhandler"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/route/tlspskserver"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/tls"
 )
 
 const (
 	// ConstWellknownPort is the common port for REST API
 	ConstWellknownPort = 56001
 	ConstInternalPort  = 56002
+)
+
+var (
+	log = logmgr.GetInstance()
 )
 
 // RestRouter struct {

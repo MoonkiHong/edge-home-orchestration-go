@@ -18,32 +18,31 @@
 package mnedcmgr
 
 import (
-	"log"
-	"os"
-	"os/signal"
-	"restinterface/tls"
-	"syscall"
+	"io/ioutil"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/tls"
 	"time"
 
-	"controller/discoverymgr"
-	"controller/mnedcmgr/client"
+	restclient "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client"
+	//"controller/discoverymgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/client"
 )
 
 //ClientImpl structure
 type ClientImpl struct {
+	clientAPI restclient.Clienter
 	tls.HasCertificate
 }
 
 var (
-	clientIns *ClientImpl
+	clientIns      *ClientImpl
 	mnedcClientIns client.MNEDCClient
-	discoveryIns discoverymgr.Discovery
+	//discoveryIns   discoverymgr.Discovery
 )
 
 func init() {
 	clientIns = new(ClientImpl)
 	mnedcClientIns = client.GetInstance()
-	discoveryIns = discoverymgr.GetInstance()
+	//discoveryIns = discoverymgr.GetInstance()
 }
 
 // GetClientInstance gives the ClientImpl singletone instance
@@ -54,11 +53,14 @@ func GetClientInstance() *ClientImpl {
 //StartMNEDCClient starts the MNEDC client
 func (c *ClientImpl) StartMNEDCClient(deviceIDPath string, configPath string) {
 
-	deviceID, err := discoveryIns.GetDeviceID()
+	//deviceID, err := discoveryIns.GetDeviceID()
+	deviceID, err := getDeviceID(deviceIDPath)
 	if err != nil {
 		log.Println(logPrefix, "Couldn't start MNEDC client", err.Error())
 		return
 	}
+
+	mnedcClientIns.SetClient(c.clientAPI)
 
 	err = c.RegisterToMNEDCServer(deviceID, configPath)
 	if err != nil {
@@ -67,7 +69,8 @@ func (c *ClientImpl) StartMNEDCClient(deviceIDPath string, configPath string) {
 	}
 
 	for attempts := 0; attempts <= maxAttempts; attempts++ {
-		err := discoveryIns.NotifyMNEDCBroadcastServer()
+		//err := discoveryIns.NotifyMNEDCBroadcastServer()
+		err := mnedcClientIns.NotifyBroadcastServer(configPath)
 		if err != nil {
 			log.Println(logPrefix, "Registering to Broadcast server Error", err.Error(), ", retrying")
 			time.Sleep(2 * time.Second)
@@ -79,33 +82,31 @@ func (c *ClientImpl) StartMNEDCClient(deviceIDPath string, configPath string) {
 
 //RegisterToMNEDCServer registers with MNEDC server
 func (c *ClientImpl) RegisterToMNEDCServer(deviceID string, configPath string) error {
-	fatalErrChan := make(chan error)
 	_, err := mnedcClientIns.CreateClient(deviceID, configPath, clientIns.IsSetCert)
 	if err != nil {
 		return err
 	}
 	mnedcClientIns.Run()
-	go waitInterrupt(fatalErrChan)
 	return nil
 }
 
-func waitInterrupt(fatalErrChan chan error) {
-	sig := make(chan os.Signal, 2)
-	done := make(chan bool, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sig
-		done <- true
-	}()
+//SetClient sets the client API
+func (c *ClientImpl) SetClient(clientAPI restclient.Clienter) {
+	c.clientAPI = clientAPI
+	//mnedcClientIns.SetClient(clientAPI)
+}
 
-	select {
-	case <-done:
-		log.Println(logPrefix, "Received interrupt, shutting down.")
-		err := mnedcClientIns.Close()
-		if err != nil {
-			log.Println(logPrefix, "Error closing client", err.Error())
-		}
-	case err := <-fatalErrChan:
-		log.Println(logPrefix, "Fatal internal error: ", err)
+func getDeviceID(path string) (string, error) {
+	logPrefix := "[GetDeviceID]"
+	UUIDv4, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		log.Println(logPrefix, "No saved UUID : ", err.Error())
+		return "", err
 	}
+
+	log.Println(logPrefix, "Got the UUID")
+	UUIDstr := "edge-orchestration-" + string(UUIDv4)
+
+	return UUIDstr, nil
 }

@@ -18,13 +18,18 @@
 package tlspskserver
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 
 	rafftls "github.com/raff/tls-ext"
 	"github.com/raff/tls-psk"
 
-	"restinterface/tls"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/tls"
+)
+
+var (
+	log = logmgr.GetInstance()
 )
 
 type TLSPSKServerListener interface {

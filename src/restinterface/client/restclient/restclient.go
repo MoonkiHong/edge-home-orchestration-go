@@ -21,12 +21,12 @@ package restclient
 import (
 	"errors"
 	"fmt"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"net/http"
 
-	"restinterface/cipher"
-	"restinterface/client"
-	"restinterface/resthelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -45,7 +45,10 @@ const (
 	logPrefix          = "[restclient]"
 )
 
-var restClient *restClientImpl
+var (
+	restClient *restClientImpl
+	log        = logmgr.GetInstance()
+)
 
 func init() {
 	restClient = new(restClientImpl)

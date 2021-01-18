@@ -21,17 +21,18 @@ package nativeexecutor
 import (
 	"bufio"
 	"errors"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"os"
 	"os/exec"
 
-	"controller/servicemgr"
-	"controller/servicemgr/executor"
-	"controller/servicemgr/notification"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/executor"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/notification"
 )
 
 var (
 	logPrefix     = "[nativeexecutor]"
+	log           = logmgr.GetInstance()
 	nativeexecutor = &NativeExecutor{}
 )
 

@@ -28,9 +28,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/songgao/water"
 
-	discoveryMocks "controller/discoverymgr/mocks"
-	networkUtilMocks "controller/mnedcmgr/connectionutil/mocks"
-	tunMocks "controller/mnedcmgr/tunmgr/mocks"
+	networkUtilMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/connectionutil/mocks"
+	discoveryMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mocks"
+	tunMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/tunmgr/mocks"
 )
 
 const (
@@ -492,8 +492,9 @@ func TestClose(t *testing.T) {
 	}
 
 	client := &Client{
-		conn: conn,
-		intf: tunIntf,
+		conn:    conn,
+		intf:    tunIntf,
+		isAlive: true,
 	}
 	mockDiscovery.EXPECT().MNEDCClosedCallback().Return()
 	err = client.Close()

@@ -28,15 +28,20 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 
-	c "restinterface/cipher"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
+
+	c "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher"
 )
 
 // Cipher has passphrase for ciphering
 type Cipher struct {
 	passphrase []byte
 }
+
+var (
+	log = logmgr.GetInstance()
+)
 
 // GetCipher set passphrase for ciphering
 func GetCipher(cipherKeyFilePath string) c.IEdgeCipherer {

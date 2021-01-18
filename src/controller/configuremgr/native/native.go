@@ -21,14 +21,14 @@ package native
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	types "common/types/configuremgrtypes"
-	"controller/configuremgr"
+	types "github.com/lf-edge/edge-home-orchestration-go/src/common/types/configuremgrtypes"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/configuremgr"
 
 	"github.com/fsnotify/fsnotify"
 	"gopkg.in/ini.v1"
@@ -41,7 +41,10 @@ type ConfigureMgr struct {
 	confpath string
 }
 
-var configuremgrObj *ConfigureMgr
+var (
+	configuremgrObj *ConfigureMgr
+	log             = logmgr.GetInstance()
+)
 
 func init() {
 	configuremgrObj = new(ConfigureMgr)

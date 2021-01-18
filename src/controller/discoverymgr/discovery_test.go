@@ -18,22 +18,21 @@
 package discoverymgr
 
 import (
-	"log"
 	"net"
 	"reflect"
 	"testing"
 	"time"
 
-	errormsg "common/errormsg"
-	errors "common/errors"
-	networkmocks "common/networkhelper/mocks"
-	wrapper "controller/discoverymgr/wrapper"
-	wrappermocks "controller/discoverymgr/wrapper/mocks"
-	systemdb "db/bolt/system"
+	errormsg "github.com/lf-edge/edge-home-orchestration-go/src/common/errormsg"
+	errors "github.com/lf-edge/edge-home-orchestration-go/src/common/errors"
+	networkmocks "github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper/mocks"
+	wrapper "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/wrapper"
+	wrappermocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/wrapper/mocks"
+	systemdb "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/system"
 	goerror "errors"
-	clientMocks "restinterface/client/mocks"
+	clientMocks "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client/mocks"
 
-	dbwrapper "db/bolt/wrapper"
+	dbwrapper "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/wrapper"
 
 	"github.com/golang/mock/gomock"
 )
@@ -248,6 +247,7 @@ func TestDeviceDetectionRoutine(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 
+		discoveryInstance := GetInstance()
 		//declare mock argument
 		devicesubchan := make(chan *wrapper.Entity, 20)
 
@@ -296,7 +296,7 @@ func TestDeviceDetectionRoutine(t *testing.T) {
 
 			presence := false
 
-			deviceID, err := getDeviceID()
+			deviceID, err := discoveryInstance.GetDeviceID()
 			log.Println(deviceID)
 			if err != nil {
 				t.Fatal(err.Error())
@@ -374,7 +374,7 @@ func TestAddNewServiceName(t *testing.T) {
 			}
 			presence := false
 
-			deviceID, err := getDeviceID()
+			deviceID, err := discoveryInstance.GetDeviceID()
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -420,7 +420,7 @@ func TestRemoveServiceName(t *testing.T) {
 
 			isPresence := false
 
-			deviceID, err := getDeviceID()
+			deviceID, err := discoveryInstance.GetDeviceID()
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -459,7 +459,7 @@ func TestResetServiceName(t *testing.T) {
 			mockWrapper.EXPECT().SetText(gomock.Any()).Return()
 			discoveryInstance.ResetServiceName()
 
-			deviceID, err := getDeviceID()
+			deviceID, err := discoveryInstance.GetDeviceID()
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -554,6 +554,9 @@ func TestDetectNetworkChgRoutine(t *testing.T) {
 	defer ctrl.Finish()
 
 	createMockIns(ctrl)
+
+	discoveryInstance := GetInstance()
+
 	addDevice(false)
 
 	shutdownChan = make(chan struct{})
@@ -569,7 +572,7 @@ func TestDetectNetworkChgRoutine(t *testing.T) {
 		ipsub <- []net.IP{net.ParseIP("192.0.2.1")}
 
 		time.Sleep(time.Millisecond * time.Duration(10))
-		deviceID, err := getDeviceID()
+		deviceID, err := discoveryInstance.GetDeviceID()
 		if err != nil {
 			t.Error(err.Error())
 		}

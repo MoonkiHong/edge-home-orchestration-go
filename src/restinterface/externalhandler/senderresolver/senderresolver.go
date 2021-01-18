@@ -20,12 +20,13 @@ package senderresolver
 import (
 	"errors"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 )
 
 const (
@@ -33,7 +34,10 @@ const (
 	WELLKNOWNPORT = 56001
 )
 
-var PROCESS_INFO_PATH = "/process"
+var (
+	PROCESS_INFO_PATH = "/process"
+	log               = logmgr.GetInstance()
+)
 
 func GetNameByPort(port int64) (string, error) {
 	lines, err := getData()

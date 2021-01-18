@@ -24,16 +24,14 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"syscall"
 	"testing"
-	"time"
 
-	networkmocks "common/networkhelper/mocks"
-	"controller/mnedcmgr/server"
-	serverMocks "controller/mnedcmgr/server/mocks"
-	ciphermock "restinterface/cipher/mocks"
-	helpermock "restinterface/resthelper/mocks"
+	networkmocks "github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper/mocks"
+	discoverymocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mocks"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/server"
+	serverMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/server/mocks"
+	ciphermock "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher/mocks"
+	helpermock "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper/mocks"
 
 	"github.com/golang/mock/gomock"
 )
@@ -60,27 +58,16 @@ func TestStartMNEDCServer(t *testing.T) {
 	defer ctrl.Finish()
 
 	createServerMockIns(ctrl)
-	err := createDeviceIDFileServer()
-	if err != nil {
-		log.Println("Could not create id file")
-		return
-	}
 
 	t.Run("ServerError", func(t *testing.T) {
 		s := GetServerInstance()
+		mockDiscovery.EXPECT().GetDeviceID().Return(defaultDeviceID, nil)
 		mockMnedcServer.EXPECT().CreateServer(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
 		s.StartMNEDCServer(defaultDeviceIDFilePath)
 	})
-	t.Run("TestWaitInterrupt", func(t *testing.T) {
-		fatalErrChan := make(chan error)
-		mockMnedcServer.EXPECT().Close().Return(nil).AnyTimes()
-		go serverWaitInterrupt(fatalErrChan)
-		time.Sleep(2 * time.Second)
-
-		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	})
 	t.Run("GetOutboundIPError", func(t *testing.T) {
 		s := GetServerInstance()
+		mockDiscovery.EXPECT().GetDeviceID().Return(defaultDeviceID, nil)
 		mockMnedcServer.EXPECT().CreateServer(gomock.Any(), gomock.Any(), gomock.Any()).Return(&server.Server{}, nil)
 		mockMnedcServer.EXPECT().Run()
 		mockNetwork.EXPECT().GetOutboundIP().Return("", errors.New(""))
@@ -88,6 +75,7 @@ func TestStartMNEDCServer(t *testing.T) {
 	})
 	t.Run("Success", func(t *testing.T) {
 		s := GetServerInstance()
+		mockDiscovery.EXPECT().GetDeviceID().Return(defaultDeviceID, nil)
 		mockMnedcServer.EXPECT().CreateServer(gomock.Any(), gomock.Any(), gomock.Any()).Return(&server.Server{}, nil)
 		mockMnedcServer.EXPECT().Run()
 		mockNetwork.EXPECT().GetOutboundIP().Return(defaultOutboundIP, nil)
@@ -95,7 +83,6 @@ func TestStartMNEDCServer(t *testing.T) {
 		s.StartMNEDCServer(defaultDeviceIDFilePath)
 	})
 
-	deleteDeviceIDFileServer()
 }
 
 func TestRequestHandler(t *testing.T) {
@@ -149,36 +136,13 @@ func TestRequestHandler(t *testing.T) {
 	handler := http.HandlerFunc(handleClientInfo)
 	GetServerInstance().SetCipher(mockCipher)
 	handler.ServeHTTP(rr, req)
-	deleteDeviceIDFileServer()
-}
-
-func createDeviceIDFileServer() error {
-	f, err := os.Create(defaultDeviceIDFilePath)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	_, err = f.WriteString(defaultDeviceID)
-	if err != nil {
-		return err
-	}
-
-	f.Sync()
-	return nil
-}
-
-func deleteDeviceIDFileServer() {
-	err := os.Remove(defaultDeviceIDFilePath)
-	if err != nil {
-		log.Println("Could not delete file")
-	}
 }
 
 func createServerMockIns(ctrl *gomock.Controller) {
 	mockNetwork = networkmocks.NewMockNetwork(ctrl)
 	mockMnedcServer = serverMocks.NewMockMNEDCServer(ctrl)
+	mockDiscovery = discoverymocks.NewMockDiscovery(ctrl)
 	mnedcServerIns = mockMnedcServer
 	networkIns = mockNetwork
+	discoveryIns = mockDiscovery
 }

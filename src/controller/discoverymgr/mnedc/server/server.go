@@ -19,13 +19,13 @@ package server
 
 import (
 	"errors"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"net"
 	"strconv"
 	"sync"
 
-	"controller/mnedcmgr/connectionutil"
-	"controller/mnedcmgr/tunmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/connectionutil"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/tunmgr"
 
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
@@ -56,9 +56,12 @@ const (
 	packetSize           = 1024
 )
 
-var serverIns *Server
-var tunIns tunmgr.Tun
-var networkUtilIns connectionutil.NetworkUtil
+var (
+	serverIns      *Server
+	tunIns         tunmgr.Tun
+	networkUtilIns connectionutil.NetworkUtil
+	log            = logmgr.GetInstance()
+)
 
 //Server defines MNEDC server struct
 type Server struct {
@@ -349,6 +352,10 @@ func (s *Server) TunWriteRoutine() {
 
 // Close shuts down the server, reversing configuration changes to the system.
 func (s *Server) Close() error {
+
+	if !s.isAlive {
+		return errors.New("Server not alive")
+	}
 
 	s.isAlive = false
 	err := s.listener.Close()

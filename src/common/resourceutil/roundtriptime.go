@@ -19,12 +19,11 @@
 package resourceutil
 
 import (
-	"log"
 	"time"
 
-	"restinterface/resthelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper"
 
-	netDB "db/bolt/network"
+	netDB "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/network"
 )
 
 const (

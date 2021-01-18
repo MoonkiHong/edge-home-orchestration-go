@@ -19,14 +19,13 @@ package native
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
-	"common/types/configuremgrtypes"
-	contextmgr "controller/configuremgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/types/configuremgrtypes"
+	contextmgr "github.com/lf-edge/edge-home-orchestration-go/src/controller/configuremgr"
 )
 
 var name string

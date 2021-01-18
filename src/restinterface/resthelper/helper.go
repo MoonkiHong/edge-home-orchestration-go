@@ -22,13 +22,14 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
-	"restinterface/resthelper/client"
-	"restinterface/resthelper/client/httphelper"
-	"restinterface/resthelper/client/tlshelper"
-	"restinterface/tls"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
+
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper/client"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper/client/httphelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper/client/tlshelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/tls"
 )
 
 // RestHelper is the interface implemented by rest helper functions
@@ -66,7 +67,10 @@ type helperImpl struct {
 	tls.HasCertificate
 }
 
-var helper *helperImpl
+var (
+	helper *helperImpl
+	log    = logmgr.GetInstance()
+)
 
 func init() {
 	helper = new(helperImpl)

@@ -20,32 +20,32 @@ package containerexecutor
 import (
 	"errors"
 	"io/ioutil"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"docker.io/go-docker/api/types/mount"
+	"github.com/docker/docker/api/types/mount"
 
-	"docker.io/go-docker/api/types/blkiodev"
+	"github.com/docker/docker/api/types/blkiodev"
 
-	"controller/servicemgr/executor"
-	"controller/servicemgr/executor/containerexecutor/mocks"
-	notificationMock "controller/servicemgr/notification/mocks"
-	clientApiMock "restinterface/client/mocks"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/executor"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/executor/containerexecutor/mocks"
+	notificationMock "github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/notification/mocks"
+	clientApiMock "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client/mocks"
 
 	"github.com/docker/go-units"
 	gomock "github.com/golang/mock/gomock"
 
-	"docker.io/go-docker/api/types"
-	"docker.io/go-docker/api/types/container"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 var (
 	imageName   = "hello-wrold"
 	containerID = "fakeimage1234"
+	networkName = "fakenet"
 
 	serviceInfo = executor.ServiceExecutionInfo{
 		ServiceID: uint64(1), ServiceName: "alpine",
@@ -575,22 +575,19 @@ func TestSuccessConvertConfigWithInteractive(t *testing.T) {
 
 func TestSuccessConvertConfigIP(t *testing.T) {
 	t.Run("IP", func(t *testing.T) {
-		validStr := []string{"docker", "run", "--ip", "12.34.56.78", imageName}
+		validStr := []string{"docker", "run", "--network", networkName, "--ip", "12.34.56.78", imageName}
 		_, _, network := convertConfig(validStr)
 
-		// @Note : "default" is default key name of endpointsconfig
-		networkConf := network.EndpointsConfig["default"]
-
+		networkConf := network.EndpointsConfig[networkName]
 		if strings.Compare(networkConf.IPAMConfig.IPv4Address, "12.34.56.78") != 0 {
 			t.Fail()
 		}
 	})
 	t.Run("IP6", func(t *testing.T) {
-		validStr := []string{"docker", "run", "--ip6", "2001:db8::33", imageName}
+		validStr := []string{"docker", "run", "--network", networkName, "--ip6", "2001:db8::33", imageName}
 		_, _, network := convertConfig(validStr)
 
-		// @Note : "default" is default key name of endpointsconfig
-		networkConf := network.EndpointsConfig["default"]
+		networkConf := network.EndpointsConfig[networkName]
 
 		if strings.Compare(networkConf.IPAMConfig.IPv6Address, "2001:db8::33") != 0 {
 			t.Fail()
@@ -598,11 +595,10 @@ func TestSuccessConvertConfigIP(t *testing.T) {
 	})
 	t.Run("LinkLocalIP", func(t *testing.T) {
 		// TODO
-		validStr := []string{"docker", "run", "--link-local-ip", "12.34.56.78", "--link-local-ip", "2001:db8::33", imageName}
+		validStr := []string{"docker", "run", "--network", networkName, "--link-local-ip", "12.34.56.78", "--link-local-ip", "2001:db8::33", imageName}
 		_, _, network := convertConfig(validStr)
 
-		// @Note : "default" is default key name of endpointsconfig
-		networkConf := network.EndpointsConfig["default"]
+		networkConf := network.EndpointsConfig[networkName]
 
 		expectIP := []string{"12.34.56.78", "2001:db8::33"}
 
@@ -787,14 +783,12 @@ func TestSuccessConvertConfigNetworkOption(t *testing.T) {
 		}
 	})
 
-	// @Note : allow for both "--net-alias" and "--network-alias", although the latter is the recommended way.
 	t.Run("NetworkAlias", func(t *testing.T) {
-		validStr := []string{"docker", "run", "--network-alias", "alias", imageName}
+		validStr := []string{"docker", "run", "--network", networkName, "--network-alias", "alias", imageName}
 
 		_, _, network := convertConfig(validStr)
 
-		// @Note : "default" is default key name of endpointsconfig
-		networkConf := network.EndpointsConfig["default"]
+		networkConf := network.EndpointsConfig[networkName]
 
 		if reflect.DeepEqual(networkConf.Aliases, []string{"alias"}) != true {
 			t.Fail()
@@ -844,7 +838,7 @@ func TestSuccessConvertConfigPIDOption(t *testing.T) {
 		validStr := []string{"docker", "run", "--pids-limit", "-1", imageName}
 		_, host, _ := convertConfig(validStr)
 
-		if host.PidsLimit != -1 {
+		if *host.PidsLimit != -1 {
 			t.Fail()
 		}
 	})

@@ -20,15 +20,17 @@ package client
 import (
 	"bufio"
 	"errors"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"net"
 	"os"
 	"sync"
 	"time"
 
-	"controller/discoverymgr"
-	"controller/mnedcmgr/connectionutil"
-	"controller/mnedcmgr/tunmgr"
+	restclient "github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client"
+	//"controller/discoverymgr"
+	networkhelper "github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/connectionutil"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/tunmgr"
 
 	"github.com/songgao/water"
 )
@@ -61,18 +63,22 @@ type Client struct {
 	serverPort      string
 	deviceID        string
 	configPath      string
+	clientAPI       restclient.Clienter
 }
 
 var (
 	clientIns      *Client
 	tunIns         tunmgr.Tun
 	networkUtilIns connectionutil.NetworkUtil
-	discoveryIns   discoverymgr.Discovery
+	networkIns     networkhelper.Network
+	//discoveryIns   discoverymgr.Discovery
+	log            = logmgr.GetInstance()
 )
 
 const (
-	waitDelay  = 150 * time.Millisecond
-	retryDelay = 5 * time.Second
+	waitDelay                = 150 * time.Millisecond
+	retryDelay               = 5 * time.Second
+	mnedcBroadcastServerPort = 3333
 )
 
 //MNEDCClient declares methods related to MNEDC client
@@ -88,13 +94,16 @@ type MNEDCClient interface {
 	ParseVirtualIP(string) error
 	TunReadRoutine()
 	TunWriteRoutine()
+	NotifyBroadcastServer(configPath string) error
+	SetClient(clientAPI restclient.Clienter)
 }
 
 func init() {
 	clientIns = &Client{}
 	tunIns = tunmgr.GetInstance()
 	networkUtilIns = connectionutil.GetInstance()
-	discoveryIns = discoverymgr.GetInstance()
+	networkIns = networkhelper.GetInstance()
+	//discoveryIns = discoverymgr.GetInstance()
 }
 
 //GetInstance returns MNEDCClient interface instance
@@ -105,9 +114,6 @@ func GetInstance() MNEDCClient {
 //CreateClient creates the MNEDC client
 func (c *Client) CreateClient(deviceID, configPath string, isSecure bool) (*Client, error) {
 	logPrefix := logTag + "[CreateClient]"
-
-	readBuf := make([]byte, packetSize)
-	readBufSize := 0
 
 	for {
 		servAddr, servPort, err := getMNEDCServerAddress(configPath)
@@ -132,7 +138,7 @@ func (c *Client) CreateClient(deviceID, configPath string, isSecure bool) (*Clie
 
 		log.Println("Write Successful")
 		//conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-		n, readBuff, err := networkUtilIns.ReadFrom(conn)
+		readBufSize, readBuf, err := networkUtilIns.ReadFrom(conn)
 
 		if err != nil {
 			log.Println(logPrefix, "Read Error: ", err.Error(), ", retrying")
@@ -140,9 +146,6 @@ func (c *Client) CreateClient(deviceID, configPath string, isSecure bool) (*Clie
 			conn.Close()
 			continue
 		}
-
-		readBuf = readBuff
-		readBufSize = n
 
 		intf, err := tunIns.CreateTUN()
 		if err != nil {
@@ -260,6 +263,11 @@ func (c *Client) ParseVirtualIP(parameters string) error {
 
 // Close shuts down the client, reversing configuration changes to the system.
 func (c *Client) Close() error {
+
+	if !c.isAlive {
+		return errors.New("Client not alive")
+	}
+
 	c.isAlive = false
 	var err error
 	if c.conn != nil {
@@ -335,11 +343,18 @@ func (c *Client) HandleError(err error) {
 
 		c.intf = intf
 		err = c.ParseVirtualIP(string(readBuf[0:n])) //unique TUN ip sent by server
-		if err == nil {
-			err = tunIns.SetTUNIP(c.intf.Name(), c.virtualIP, c.netMask, true)
-			err = tunIns.SetTUNStatus(c.intf.Name(), true, true)
+		if err != nil {
+			log.Println(logPrefix, "Parse Virtual IP error:", err.Error())
+			return
 		}
 
+		err = tunIns.SetTUNIP(c.intf.Name(), c.virtualIP, c.netMask, true)
+		if err != nil {
+			log.Println(logPrefix, "TUN error:", err.Error())
+			return
+		}
+
+		err = tunIns.SetTUNStatus(c.intf.Name(), true, true)
 		if err != nil {
 			log.Println(logPrefix, "TUN error:", err.Error())
 			return
@@ -398,14 +413,73 @@ func (c *Client) TunWriteRoutine() {
 func (c *Client) NotifyClose() {
 	logPrefix := "[NotifyClose]"
 	log.Println(logPrefix, "MNEDC connection closed")
-	discoveryIns.MNEDCClosedCallback()
+	//discoveryIns.MNEDCClosedCallback()
 }
 
 //ConnectionReconciled handles the case when MNEDC connection is re-established
 func (c *Client) ConnectionReconciled() {
 	logPrefix := "[connectionReIstablish]"
 	log.Println(logPrefix, "MNEDC connection reistablished")
-	discoveryIns.MNEDCReconciledCallback()
+	//discoveryIns.MNEDCReconciledCallback()
+	//notifyBroadcastServer()
+	c.NotifyBroadcastServer(c.configPath)
+}
+
+//NotifyBroadcastServer sends request to broadcast server
+func (c *Client) NotifyBroadcastServer(configPath string) error {
+	logPrefix := "[RegisterBroadcast]"
+	log.Println(logTag, "Registering to Broadcast server")
+	c.configPath = configPath
+	virtualIP, err := networkIns.GetVirtualIP()
+	if err != nil {
+		log.Println(logPrefix, "Cant register to Broadcast server, virtual IP error", err.Error())
+		return err
+	}
+
+	privateIP, err := networkIns.GetOutboundIP()
+	if err != nil {
+		log.Println(logPrefix, "Cant register to Broadcast server, outbound IP error", err.Error())
+		return err
+	}
+
+	file, err := os.Open(configPath)
+
+	if err != nil {
+		log.Println(logPrefix, "cant read config file from", configPath, err.Error())
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+
+	scanner.Scan()
+	serverIP := scanner.Text()
+
+	go func() {
+
+		if c.clientAPI == nil {
+			log.Println(logPrefix, "Client is nil, returning")
+			err = errors.New("Client is nil")
+			return
+		}
+		err = c.clientAPI.DoNotifyMNEDCBroadcastServer(serverIP, mnedcBroadcastServerPort, c.deviceID, privateIP, virtualIP)
+		if err != nil {
+			log.Println(logPrefix, "Cannot register to Broadcast server", err.Error())
+		}
+	}()
+
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//SetClient sets the rest client
+func (c *Client) SetClient(clientAPI restclient.Clienter) {
+	c.clientAPI = clientAPI
 }
 
 func getMNEDCServerAddress(path string) (string, string, error) {

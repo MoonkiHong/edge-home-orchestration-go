@@ -20,22 +20,24 @@ package orchestrationapi
 
 import (
 	"errors"
-	"log"
 	"time"
 
-	"common/commandvalidator"
-	"common/networkhelper"
-	"common/requestervalidator"
-	"common/resourceutil"
-	"common/types/configuremgrtypes"
-	"controller/configuremgr"
-	"controller/discoverymgr"
-	"controller/scoringmgr"
-	"controller/securemgr/verifier"
-	"controller/servicemgr"
-	"controller/servicemgr/executor"
-	"controller/servicemgr/notification"
-	"restinterface/client"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/storagemgr"
+
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/commandvalidator"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/requestervalidator"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/resourceutil"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/types/configuremgrtypes"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/configuremgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/scoringmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/securemgr/verifier"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/executor"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/notification"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client"
 )
 
 const logtag = "Orchestration"
@@ -66,6 +68,7 @@ type OrcheInternalAPI interface {
 var (
 	orcheIns            *orcheImpl
 	resourceMonitorImpl resourceutil.Monitor
+	log                 = logmgr.GetInstance()
 )
 
 func init() {
@@ -104,6 +107,9 @@ type OrchestrationBuilder struct {
 	isSetDiscovery bool
 	discoveryIns   discoverymgr.Discovery
 
+	isSetStorage bool
+	storageIns   storagemgr.Storage
+
 	isSetWatcher bool
 	watcherIns   configuremgr.Watcher
 
@@ -135,6 +141,12 @@ func (o *OrchestrationBuilder) SetDiscovery(d discoverymgr.Discovery) {
 	o.discoveryIns = d
 }
 
+// SetStorage registers the interface to handle orchestration Storage
+func (o *OrchestrationBuilder) SetStorage(d storagemgr.Storage) {
+	o.isSetStorage = true
+	o.storageIns = d
+}
+
 // SetWatcher registers the interface to check if service applications are installed
 func (o *OrchestrationBuilder) SetWatcher(w configuremgr.Watcher) {
 	o.isSetWatcher = true
@@ -163,13 +175,14 @@ func (o *OrchestrationBuilder) SetClient(c client.Clienter) {
 func (o OrchestrationBuilder) Build() Orche {
 	if !o.isSetWatcher || !o.isSetDiscovery || !o.isSetScoring ||
 		!o.isSetService || !o.isSetExecutor || !o.isSetClient ||
-		!o.isSetVerifierConf {
+		!o.isSetVerifierConf || !o.isSetStorage {
 		return nil
 	}
 
 	orcheIns.Ready = false
 	orcheIns.scoringIns = o.scoringIns
 	orcheIns.discoverIns = o.discoveryIns
+	orcheIns.storageIns = o.storageIns
 	orcheIns.verifierIns = o.verifierIns
 	orcheIns.watcher = o.watcherIns
 	orcheIns.serviceIns = o.serviceIns
@@ -188,6 +201,7 @@ func (o OrchestrationBuilder) Build() Orche {
 func (o *orcheImpl) Start(deviceIDPath string, platform string, executionType string) {
 	resourceMonitorImpl.StartMonitoringResource()
 	o.discoverIns.StartDiscovery(deviceIDPath, platform, executionType)
+	o.storageIns.StartStorage()
 	o.watcher.Watch(o)
 	o.Ready = true
 	time.Sleep(1000)

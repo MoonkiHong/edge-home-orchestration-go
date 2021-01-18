@@ -1,19 +1,20 @@
-/*******************************************************************************
- * Copyright 2020 Samsung Electronics All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- *******************************************************************************/
+//
+// Copyright (c) 2020 Samsung Electronics Co., Ltd All Rights Reserved.
+// Copyright (c) 2019 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 package storagedriver
 
 import (
@@ -84,14 +85,14 @@ func (handler StorageHandler) processAsyncRequest(writer http.ResponseWriter, re
 	_, err := handler.service.GetDeviceByName(deviceName)
 	if err != nil {
 		handler.logger.Error(fmt.Sprintf("Incoming reading ignored. Device '%s' not found", deviceName))
-		http.Error(writer, fmt.Sprintf("Device '%s' not found", deviceName), http.StatusNotFound)
+		http.Error(writer, fmt.Sprintf("Device not found"), http.StatusNotFound)
 		return
 	}
 
 	deviceResource, ok := handler.service.DeviceResource(deviceName, resourceName, "get")
 	if !ok {
 		handler.logger.Error(fmt.Sprintf("Incoming reading ignored. Resource '%s' not found", resourceName))
-		http.Error(writer, fmt.Sprintf("Resource '%s' not found", resourceName), http.StatusNotFound)
+		http.Error(writer, fmt.Sprintf("Resource not found"), http.StatusNotFound)
 		return
 	}
 
@@ -196,14 +197,14 @@ func deviceHandler(writer http.ResponseWriter, request *http.Request) {
 
 func (handler StorageHandler) newCommandValue(resourceName string, reading interface{}, valueType models.ValueType) (*models.CommandValue, error) {
 	var result = &models.CommandValue{}
-	var err error
+	var errn error
 	var timestamp = time.Now().UnixNano()
 	castError := "fail to parse %v reading, %v"
 
 	if !checkValueInRange(valueType, reading) {
-		err = fmt.Errorf("parse reading fail. Reading %v is out of the value type(%v)'s range", reading, valueType)
-		handler.logger.Error(err.Error())
-		return result, err
+		errn = fmt.Errorf("parse reading fail. Reading %v is out of the value type(%v)'s range", reading, valueType)
+		handler.logger.Error(errn.Error())
+		return result, errn
 	}
 
 	switch valueType {
@@ -212,82 +213,82 @@ func (handler StorageHandler) newCommandValue(resourceName string, reading inter
 		if !ok {
 			return nil, fmt.Errorf(castError, resourceName, "not []byte")
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Bool:
 		val, err := cast.ToBoolE(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.String:
 		val, err := cast.ToStringE(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Uint8:
 		val, err := cast.ToUint8E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Uint16:
 		val, err := cast.ToUint16E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Uint32:
 		val, err := cast.ToUint32E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Uint64:
 		val, err := cast.ToUint64E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Int8:
 		val, err := cast.ToInt8E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Int16:
 		val, err := cast.ToInt16E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Int32:
 		val, err := cast.ToInt32E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 
 	case models.Int64:
 		val, err := cast.ToInt64E(reading)
 		if err != nil {
 			return nil, fmt.Errorf(castError, resourceName, err)
 		}
-		result, err = models.NewCommandValue(resourceName, timestamp, val, valueType)
+		result, errn = models.NewCommandValue(resourceName, timestamp, val, valueType)
 	default:
-		err = fmt.Errorf("return result fail, none supported value type: %v", valueType)
+		errn = fmt.Errorf("return result fail, none supported value type: %v", valueType)
 	}
 
-	return result, err
+	return result, errn
 }
 
 func checkValueInRange(valueType models.ValueType, reading interface{}) bool {

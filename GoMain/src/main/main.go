@@ -20,37 +20,34 @@ package main
 
 import (
 	"errors"
-	"log"
-	"strings"
 	"os"
+	"strings"
 
-	"common/logmgr"
-	"common/sigmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/sigmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/storagemgr"
 
-	configuremgr "controller/configuremgr/container"
-	"controller/discoverymgr"
-	"controller/mnedcmgr"
-	"controller/scoringmgr"
-	"controller/securemgr/authenticator"
-	"controller/securemgr/authorizer"
-	"controller/securemgr/verifier"
-	"controller/servicemgr"
-	executor "controller/servicemgr/executor/containerexecutor"
-	"controller/storagemgr/storagedriver"
+	configuremgr "github.com/lf-edge/edge-home-orchestration-go/src/controller/configuremgr/container"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr"
+	mnedcmgr "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/scoringmgr"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/securemgr/authenticator"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/securemgr/authorizer"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/securemgr/verifier"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr"
+	executor "github.com/lf-edge/edge-home-orchestration-go/src/controller/servicemgr/executor/containerexecutor"
 
-	"orchestrationapi"
+	"github.com/lf-edge/edge-home-orchestration-go/src/orchestrationapi"
 
-	"restinterface/cipher/dummy"
-	"restinterface/cipher/sha256"
-	"restinterface/client/restclient"
-	"restinterface/externalhandler"
-	"restinterface/internalhandler"
-	"restinterface/route"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher/dummy"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher/sha256"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client/restclient"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/externalhandler"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/internalhandler"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/route"
 
-	"db/bolt/wrapper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/wrapper"
 
-	"github.com/edgexfoundry/device-sdk-go"
-	"github.com/edgexfoundry/device-sdk-go/pkg/startup"
 )
 
 const logPrefix = "interface"
@@ -59,8 +56,6 @@ const logPrefix = "interface"
 const (
 	platform      = "docker"
 	executionType = "container"
-
-	dataStorageService = "datastorage"
 
 	edgeDir = "/var/edge-orchestration"
 
@@ -72,15 +67,15 @@ const (
 	passPhraseJWTPath      = edgeDir + "/data/jwt"
 	rbacRulePath           = edgeDir + "/data/rbac"
 
-	cipherKeyFilePath      = edgeDir + "/user/orchestration_userID.txt"
-	deviceIDFilePath       = edgeDir + "/device/orchestration_deviceID.txt"
-	dataStorageFilePath    = edgeDir + "/datastorage/configuration.toml"
-	mnedcServerConfig      = edgeDir + "/mnedc/client.config"
+	cipherKeyFilePath   = edgeDir + "/user/orchestration_userID.txt"
+	deviceIDFilePath    = edgeDir + "/device/orchestration_deviceID.txt"
+	mnedcServerConfig   = edgeDir + "/mnedc/client.config"
 )
 
 var (
 	commitID, version, buildTime string
 	buildTags                    string
+	log                          = logmgr.GetInstance()
 )
 
 func main() {
@@ -92,7 +87,7 @@ func main() {
 
 // orchestrationInit runs orchestration service and discovers other orchestration services in other devices
 func orchestrationInit() error {
-	logmgr.Init(logPath)
+	logmgr.InitLogfile(logPath)
 	log.Printf("[%s] OrchestrationInit", logPrefix)
 	log.Println(">>> commitID  : ", commitID)
 	log.Println(">>> version   : ", version)
@@ -104,8 +99,8 @@ func orchestrationInit() error {
 	mnedc := os.Getenv("MNEDC")
 
 	isSecured := false
-	if len(secure)>0 {
-		if strings.Compare(strings.ToLower(secure), "true")==0 {
+	if len(secure) > 0 {
+		if strings.Compare(strings.ToLower(secure), "true") == 0 {
 			log.Println("Orchestration init with secure option")
 			isSecured = true
 		}
@@ -130,10 +125,12 @@ func orchestrationInit() error {
 
 	servicemgr.GetInstance().SetClient(restIns)
 	discoverymgr.GetInstance().SetClient(restIns)
+	mnedcmgr.GetClientInstance().SetClient(restIns)
 
 	builder := orchestrationapi.OrchestrationBuilder{}
 	builder.SetWatcher(configuremgr.GetInstance(configPath))
 	builder.SetDiscovery(discoverymgr.GetInstance())
+	builder.SetStorage(storagemgr.GetInstance())
 	builder.SetVerifierConf(verifier.GetInstance())
 	builder.SetScoring(scoringmgr.GetInstance())
 	builder.SetService(servicemgr.GetInstance())
@@ -182,28 +179,24 @@ func orchestrationInit() error {
 
 	restEdgeRouter.Start()
 
-	if _, err := os.Stat(dataStorageFilePath); err==nil {
-		sd := storagedriver.StorageDriver{}
-		go startup.Bootstrap(dataStorageService, device.Version, &sd)
-	}
 
 	log.Println(logPrefix, "orchestration init done")
 
 	if len(mnedc) > 0 {
-                if strings.Compare(strings.ToLower(mnedc), "server") == 0 {
-                        if isSecured {
-                                mnedcmgr.GetServerInstance().SetCipher(dummy.GetCipher(cipherKeyFilePath))
-                                mnedcmgr.GetServerInstance().SetCertificateFilePath(certificateFilePath)
-                        } else {
-                                mnedcmgr.GetServerInstance().SetCipher(sha256.GetCipher(cipherKeyFilePath))
-                        }
-                        go mnedcmgr.GetServerInstance().StartMNEDCServer(deviceIDFilePath)
-                } else if strings.Compare(strings.ToLower(mnedc), "client") == 0 {
-                        if isSecured {
-                                mnedcmgr.GetClientInstance().SetCertificateFilePath(certificateFilePath)
-                        }
-                        go mnedcmgr.GetClientInstance().StartMNEDCClient(deviceIDFilePath, mnedcServerConfig)
-                }
+		if strings.Compare(strings.ToLower(mnedc), "server") == 0 {
+			if isSecured {
+				mnedcmgr.GetServerInstance().SetCipher(dummy.GetCipher(cipherKeyFilePath))
+				mnedcmgr.GetServerInstance().SetCertificateFilePath(certificateFilePath)
+			} else {
+				mnedcmgr.GetServerInstance().SetCipher(sha256.GetCipher(cipherKeyFilePath))
+			}
+			go discoverymgr.GetInstance().StartMNEDCServer(deviceIDFilePath)
+		} else if strings.Compare(strings.ToLower(mnedc), "client") == 0 {
+			if isSecured {
+				mnedcmgr.GetClientInstance().SetCertificateFilePath(certificateFilePath)
+			}
+			go discoverymgr.GetInstance().StartMNEDCClient(deviceIDFilePath, mnedcServerConfig)
+		}
 	} else {
 		if strings.Contains(buildTags, "mnedcserver") {
 			if isSecured {
@@ -212,12 +205,12 @@ func orchestrationInit() error {
 			} else {
 				mnedcmgr.GetServerInstance().SetCipher(sha256.GetCipher(cipherKeyFilePath))
 			}
-			go mnedcmgr.GetServerInstance().StartMNEDCServer(deviceIDFilePath)
+			go discoverymgr.GetInstance().StartMNEDCServer(deviceIDFilePath)
 		} else if strings.Contains(buildTags, "mnedcclient") {
 			if isSecured {
 				mnedcmgr.GetClientInstance().SetCertificateFilePath(certificateFilePath)
 			}
-			go mnedcmgr.GetClientInstance().StartMNEDCClient(deviceIDFilePath, mnedcServerConfig)
+			go discoverymgr.GetInstance().StartMNEDCClient(deviceIDFilePath, mnedcServerConfig)
 		}
 	}
 

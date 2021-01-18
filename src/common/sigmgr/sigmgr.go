@@ -18,14 +18,21 @@
 package sigmgr
 
 import (
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/client"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/server"
 )
 
 const (
-	logPrefix          = "[sigmgr]"
+	logPrefix = "[sigmgr]"
+)
+
+var (
+	log = logmgr.GetInstance()
 )
 
 // Watch operating system signals
@@ -34,4 +41,16 @@ func Watch() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	s := <-sig
 	log.Println(logPrefix, "Received Signal:", s)
+	err := server.GetInstance().Close()
+	if err != nil {
+		log.Println(logPrefix, "[MNEDC Server]", err.Error())
+	} else {
+		log.Println(logPrefix, "[MNEDC Server]", "Server Closed")
+	}
+	err = client.GetInstance().Close()
+	if err != nil {
+		log.Println(logPrefix, "[MNEDC Client]", err.Error())
+	} else {
+		log.Println(logPrefix, "[MNEDC Client]", "Client Closed")
+	}
 }

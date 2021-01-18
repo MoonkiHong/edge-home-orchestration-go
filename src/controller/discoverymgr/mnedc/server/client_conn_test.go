@@ -19,7 +19,6 @@ package server
 
 import (
 	"errors"
-	"log"
 	"net"
 	"testing"
 	"time"
@@ -27,8 +26,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/songgao/water"
 
-	networkUtilMocks "controller/mnedcmgr/connectionutil/mocks"
-	tunMocks "controller/mnedcmgr/tunmgr/mocks"
+	networkUtilMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/connectionutil/mocks"
+	tunMocks "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/tunmgr/mocks"
 )
 
 var (

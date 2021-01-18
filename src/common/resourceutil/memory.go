@@ -18,10 +18,9 @@
 package resourceutil
 
 import (
-	"log"
 	"time"
 
-	resourceDB "db/bolt/resource"
+	resourceDB "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/resource"
 
 	memutil "github.com/shirou/gopsutil/mem"
 )

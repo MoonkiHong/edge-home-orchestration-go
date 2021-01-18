@@ -19,7 +19,7 @@ package authorizer
 import (
 	"errors"
 	"io/ioutil"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"net/http"
 	"os"
 
@@ -46,6 +46,7 @@ const (
 
 var (
 	logPrefix             = "[securemgr: RBAC]"
+	log                   = logmgr.GetInstance()
 	rbacPolicyFilePath    = ""
 	rbacAuthModelFilePath = ""
 	authorizerIns         *AuthorizerImpl
@@ -81,7 +82,7 @@ func Init(rbacRulePath string) {
 	if _, err := os.Stat(rbacRulePath); err != nil {
 		err := os.MkdirAll(rbacRulePath, os.ModePerm)
 		if err != nil {
-			log.Panicf("Failed to create rbacRulePath %s: %s\n", rbacRulePath, err)
+			log.Panicf("%s Failed to create rbacRulePath %s: %s\n", logPrefix, rbacRulePath, err)
 			return
 		}
 	}
@@ -89,7 +90,7 @@ func Init(rbacRulePath string) {
 	if _, err := os.Stat(rbacPolicyFilePath); err != nil {
 		err = ioutil.WriteFile(rbacPolicyFilePath, []byte(policy_template), 0666)
 		if err != nil {
-			log.Println(logPrefix, "Cannot create "+rbacPolicyFilePath+": ", err)
+			log.Panicf("%s Cannot create %s: %s\n", logPrefix, rbacPolicyFilePath, err)
 		}
 	}
 
@@ -97,7 +98,7 @@ func Init(rbacRulePath string) {
 	if _, err := os.Stat(rbacAuthModelFilePath); err != nil {
 		err = ioutil.WriteFile(rbacAuthModelFilePath, []byte(auth_model_template), 0666)
 		if err != nil {
-			log.Println(logPrefix, "Cannot create "+rbacAuthModelFilePath+": ", err)
+			log.Panicf("%s Cannot create %s: %s\n", logPrefix, rbacAuthModelFilePath, err)
 		}
 	}
 

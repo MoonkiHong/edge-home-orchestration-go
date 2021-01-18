@@ -19,19 +19,16 @@ package mnedcmgr
 
 import (
 	"io/ioutil"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 
-	networkhelper "common/networkhelper"
-	"controller/mnedcmgr/server"
-	"restinterface/cipher"
-	"restinterface/resthelper"
-	"restinterface/route/tlspskserver"
-	"restinterface/tls"
+	networkhelper "github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc/server"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/resthelper"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/route/tlspskserver"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/tls"
 )
 
 //ServerImpl structure
@@ -45,6 +42,7 @@ var (
 	networkIns     networkhelper.Network
 	mnedcServerIns server.MNEDCServer
 	helper         resthelper.RestHelper
+	log            = logmgr.GetInstance()
 )
 
 func init() {
@@ -62,7 +60,8 @@ func GetServerInstance() *ServerImpl {
 //StartMNEDCServer starts the MNEDC server on the machine
 func (ServerImpl) StartMNEDCServer(deviceIDPath string) {
 
-	deviceID, err := discoveryIns.GetDeviceID()
+	//deviceID, err := discoveryIns.GetDeviceID()
+	deviceID, err := getDeviceID(deviceIDPath)
 	if err != nil {
 		log.Println(logPrefix, "Couldn't start MNEDC server", err.Error())
 		return
@@ -74,9 +73,7 @@ func (ServerImpl) StartMNEDCServer(deviceIDPath string) {
 		return
 	}
 
-	fatalErrChan := make(chan error)
 	mnedcServerIns.Run()
-	go serverWaitInterrupt(fatalErrChan)
 
 	privateIP, err := networkIns.GetOutboundIP()
 	if err != nil {
@@ -166,26 +163,5 @@ func postInfoToClient(target string, jsonData []byte) {
 	_, code, err := helper.DoPost(targetURL, jsonData)
 	if err != nil || code != http.StatusOK {
 		log.Println(logPrefix, "Error in post", err.Error())
-	}
-}
-
-func serverWaitInterrupt(fatalErrChan chan error) {
-	sig := make(chan os.Signal, 2)
-	done := make(chan bool, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sig
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		log.Println(logPrefix, "Received interrupt, shutting down.")
-		err := mnedcServerIns.Close()
-		if err != nil {
-			log.Println(logPrefix, "Error closing server", err.Error())
-		}
-	case err := <-fatalErrChan:
-		log.Println(logPrefix, "Fatal internal error: ", err)
 	}
 }

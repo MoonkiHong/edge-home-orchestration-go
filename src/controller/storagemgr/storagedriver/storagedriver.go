@@ -1,24 +1,25 @@
-/*******************************************************************************
- * Copyright 2020 Samsung Electronics All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- *******************************************************************************/
+//
+// Copyright (c) 2020 Samsung Electronics Co., Ltd All Rights Reserved.
+// Copyright (c) 2019 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 package storagedriver
 
 import (
 	"fmt"
-	"log"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 
 	sdk "github.com/edgexfoundry/device-sdk-go"
 	dsModels "github.com/edgexfoundry/device-sdk-go/pkg/models"
@@ -32,6 +33,10 @@ type StorageDriver struct {
 	logger      logger.LoggingClient
 	asyncValues chan<- *dsModels.AsyncValues
 }
+
+var (
+	log = logmgr.GetInstance()
+)
 
 // Initialize performs protocol-specific initialization for the device
 func (driver *StorageDriver) Initialize(logger logger.LoggingClient, asyncValues chan<- *dsModels.AsyncValues) error {

@@ -19,23 +19,24 @@ package discoverymgr
 
 import (
 	"bufio"
+	"github.com/lf-edge/edge-home-orchestration-go/src/common/logmgr"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"reflect"
 	"time"
 
-	errors "common/errors"
-	networkhelper "common/networkhelper"
-	wrapper "controller/discoverymgr/wrapper"
+	errors "github.com/lf-edge/edge-home-orchestration-go/src/common/errors"
+	networkhelper "github.com/lf-edge/edge-home-orchestration-go/src/common/networkhelper"
+	mnedc "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/mnedc"
+	wrapper "github.com/lf-edge/edge-home-orchestration-go/src/controller/discoverymgr/wrapper"
 
-	configurationdb "db/bolt/configuration"
-	networkdb "db/bolt/network"
-	servicedb "db/bolt/service"
-	systemdb "db/bolt/system"
-	"restinterface/cipher"
-	"restinterface/client"
+	configurationdb "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/configuration"
+	networkdb "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/network"
+	servicedb "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/service"
+	systemdb "github.com/lf-edge/edge-home-orchestration-go/src/db/bolt/system"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/cipher"
+	"github.com/lf-edge/edge-home-orchestration-go/src/restinterface/client"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -56,6 +57,8 @@ type Discovery interface {
 	NotifyMNEDCBroadcastServer() error
 	MNEDCReconciledCallback()
 	GetDeviceID() (id string, err error)
+	StartMNEDCClient(string, string)
+	StartMNEDCServer(string)
 	client.Setter
 	cipher.Setter
 }
@@ -78,6 +81,7 @@ func (d *DiscoveryImpl) GetDeviceID() (id string, err error) {
 var (
 	discoveryIns *DiscoveryImpl
 	networkIns   networkhelper.Network
+	log          = logmgr.GetInstance()
 )
 
 func init() {
@@ -258,7 +262,13 @@ func (DiscoveryImpl) GetOrchestrationInfo() (platfrom string, executionType stri
 
 	log.Println(logPrefix, "Orch info requested")
 	serviceList, err = getServiceList()
+	if err != nil {
+		return
+	}
 	platfrom, err = getPlatform()
+	if err != nil {
+		return
+	}
 	executionType, err = getExecType()
 	return
 }
@@ -382,7 +392,6 @@ func setDeviceID(UUIDPath string) (UUIDstr string, err error) {
 	log.Println(logPrefix, "UUID : ", UUIDstr)
 	return UUIDstr, err
 }
-
 
 func getPlatform() (platform string, err error) {
 	platform, err = getSystemDB(systemdb.Platform)
@@ -684,6 +693,16 @@ func (d *DiscoveryImpl) MNEDCReconciledCallback() {
 	if err != nil {
 		log.Println(logPrefix, "Could not reconect to Broadcast server")
 	}
+}
+
+//StartMNEDCClient Starts MNEDC client
+func (d *DiscoveryImpl) StartMNEDCClient(deviceIDFilePath, mnedcServerConfig string) {
+	mnedc.GetClientInstance().StartMNEDCClient(deviceIDFilePath, mnedcServerConfig)
+}
+
+//StartMNEDCServer Starts MNEDC server
+func (d *DiscoveryImpl) StartMNEDCServer(deviceIDFilePath string) {
+	mnedc.GetServerInstance().StartMNEDCServer(deviceIDFilePath)
 }
 
 // ClearMap makes map empty and only leaves my device info
